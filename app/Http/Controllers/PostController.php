@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 
 class PostController extends Controller
@@ -78,17 +79,35 @@ class PostController extends Controller
         if($validation->fails()){
             return response()->json($validation->errors(), 400);
         }
-
           $userPost = Auth::user()->posts;
+
             foreach($userPost as $post){
-                 $post->where('id',$request->id)->first()->update([
+                if($request->coverImage != null){
+                    if(File::exists(public_path('userPhoto/'.$post->coverImage)))
+                      File::delete(public_path('userPhoto/'.$post->coverImage));
+                    $fileName = time().$request->coverImage->getClientOriginalExtension();
+                    $path =  $request->coverImage->storeAs('coverImages',$fileName,'userPhoto');
+
+                    $post->where('id',$request->id)->first()->update([
+                        'name' => $request->name,
+                        'body' => $request->body,
+                        'coverImage' =>  $path,
+                        'pinned' => $request->pinned
+                    ]);
+                    return $this->SendResponse("Post updated successfully with photo",200);
+
+                }
+
+                $post->where('id',$request->id)->first()->update([
                        'name' => $request->name,
                        'body' => $request->body,
-                       'coverImage' => $request->coverImage ? $request->coverImage : $userPost->first()->coverImage,
+                       'coverImage' => $post->coverImage,
                        'pinned' => $request->pinned
                 ]);
+                return $this->SendResponse("Post updated successfully without photo",200);
+
             }
-        return $this->SendResponse("Post updated successfully",200);
+
     }
     public function delete(Request $request)
     {
